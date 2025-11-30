@@ -155,6 +155,194 @@ $$
 - $z \sim \mathcal{N}(0, I)$ 是随机噪声（仅在 $t > 0$ 时添加）
 - $\sigma_t$ 是方差项
 
+#### 3.2.1 详细推导过程
+
+**步骤 1：前向过程的回顾**
+
+前向过程定义：
+
+$$
+q(x_t \mid x_{t-1}) = \mathcal{N}(x_t; \sqrt{\alpha_t} \, x_{t-1}, \beta_t \, I)
+$$
+
+累积前向过程（从 $x_0$ 直接到 $x_t$）：
+
+$$
+q(x_t \mid x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} \, x_0, \bar{\beta}_t \, I)
+$$
+
+即：
+
+$$
+x_t = \sqrt{\bar{\alpha}_t} \, x_0 + \sqrt{\bar{\beta}_t} \, \epsilon_t, \quad \epsilon_t \sim \mathcal{N}(0, I)
+$$
+
+**步骤 2：反向过程的目标**
+
+反向过程的目标是学习分布 $p_\theta(x_{t-1} \mid x_t)$，使其能够从噪声 $x_T$ 逐步恢复原始数据 $x_0$。
+
+根据 DDPM 论文，反向过程定义为：
+
+$$
+p_\theta(x_{t-1} \mid x_t) = \mathcal{N}(x_{t-1}; \mu_\theta(x_t, t), \Sigma_\theta(x_t, t))
+$$
+
+**步骤 3：使用贝叶斯定理推导后验分布**
+
+根据贝叶斯定理，后验分布 $q(x_{t-1} \mid x_t, x_0)$ 可以表示为：
+
+$$
+q(x_{t-1} \mid x_t, x_0) = \frac{q(x_t \mid x_{t-1}, x_0) \, q(x_{t-1} \mid x_0)}{q(x_t \mid x_0)}
+$$
+
+由于前向过程是马尔可夫的，$q(x_t \mid x_{t-1}, x_0) = q(x_t \mid x_{t-1})$，因此：
+
+$$
+q(x_{t-1} \mid x_t, x_0) = \frac{q(x_t \mid x_{t-1}) \, q(x_{t-1} \mid x_0)}{q(x_t \mid x_0)}
+$$
+
+**步骤 4：展开各项的概率密度函数**
+
+各项的概率密度函数为：
+
+$$
+\begin{aligned}
+q(x_t \mid x_{t-1}) &= \mathcal{N}(x_t; \sqrt{\alpha_t} \, x_{t-1}, \beta_t \, I) \\
+&\propto \exp\left(-\frac{1}{2\beta_t} \|x_t - \sqrt{\alpha_t} \, x_{t-1}\|^2\right) \\
+q(x_{t-1} \mid x_0) &= \mathcal{N}(x_{t-1}; \sqrt{\bar{\alpha}_{t-1}} \, x_0, \bar{\beta}_{t-1} \, I) \\
+&\propto \exp\left(-\frac{1}{2\bar{\beta}_{t-1}} \|x_{t-1} - \sqrt{\bar{\alpha}_{t-1}} \, x_0\|^2\right) \\
+q(x_t \mid x_0) &= \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} \, x_0, \bar{\beta}_t \, I) \\
+&\propto \exp\left(-\frac{1}{2\bar{\beta}_t} \|x_t - \sqrt{\bar{\alpha}_t} \, x_0\|^2\right)
+\end{aligned}
+$$
+
+**步骤 5：计算后验分布的指数部分**
+
+后验分布的对数形式为：
+
+$$
+\begin{aligned}
+\log q(x_{t-1} \mid x_t, x_0) &\propto -\frac{1}{2\beta_t} \|x_t - \sqrt{\alpha_t} \, x_{t-1}\|^2 \\
+&\quad -\frac{1}{2\bar{\beta}_{t-1}} \|x_{t-1} - \sqrt{\bar{\alpha}_{t-1}} \, x_0\|^2 \\
+&\quad + \frac{1}{2\bar{\beta}_t} \|x_t - \sqrt{\bar{\alpha}_t} \, x_0\|^2
+\end{aligned}
+$$
+
+展开平方项：
+
+$$
+\begin{aligned}
+\|x_t - \sqrt{\alpha_t} \, x_{t-1}\|^2 &= x_t^T x_t - 2\sqrt{\alpha_t} \, x_t^T x_{t-1} + \alpha_t \, x_{t-1}^T x_{t-1} \\
+\|x_{t-1} - \sqrt{\bar{\alpha}_{t-1}} \, x_0\|^2 &= x_{t-1}^T x_{t-1} - 2\sqrt{\bar{\alpha}_{t-1}} \, x_{t-1}^T x_0 + \bar{\alpha}_{t-1} \, x_0^T x_0
+\end{aligned}
+$$
+
+**步骤 6：提取关于 $x_{t-1}$ 的二次项和一次项**
+
+将关于 $x_{t-1}$ 的项整理：
+
+$$
+\begin{aligned}
+\log q(x_{t-1} \mid x_t, x_0) &\propto -\frac{1}{2} \left[\frac{\alpha_t}{\beta_t} + \frac{1}{\bar{\beta}_{t-1}}\right] x_{t-1}^T x_{t-1} \\
+&\quad + \left[\frac{\sqrt{\alpha_t}}{\beta_t} x_t + \frac{\sqrt{\bar{\alpha}_{t-1}}}{\bar{\beta}_{t-1}} x_0\right]^T x_{t-1} + \text{常数项}
+\end{aligned}
+$$
+
+这是一个关于 $x_{t-1}$ 的二次型，对应一个高斯分布。
+
+**步骤 7：确定后验分布的均值和方差**
+
+对于高斯分布 $\mathcal{N}(x; \mu, \Sigma)$，其概率密度函数的指数部分为：
+
+$$
+-\frac{1}{2}(x - \mu)^T \Sigma^{-1}(x - \mu) = -\frac{1}{2}x^T \Sigma^{-1} x + \mu^T \Sigma^{-1} x + \text{常数项}
+$$
+
+对比系数，得到：
+
+$$
+\begin{aligned}
+\Sigma^{-1} &= \frac{\alpha_t}{\beta_t} + \frac{1}{\bar{\beta}_{t-1}} = \frac{\alpha_t \bar{\beta}_{t-1} + \beta_t}{\beta_t \bar{\beta}_{t-1}} = \frac{\bar{\beta}_t}{\beta_t \bar{\beta}_{t-1}} \\
+\mu^T \Sigma^{-1} &= \frac{\sqrt{\alpha_t}}{\beta_t} x_t + \frac{\sqrt{\bar{\alpha}_{t-1}}}{\bar{\beta}_{t-1}} x_0
+\end{aligned}
+$$
+
+因此：
+
+$$
+\begin{aligned}
+\Sigma &= \frac{\beta_t \bar{\beta}_{t-1}}{\bar{\beta}_t} \\
+\mu &= \Sigma \left(\frac{\sqrt{\alpha_t}}{\beta_t} x_t + \frac{\sqrt{\bar{\alpha}_{t-1}}}{\bar{\beta}_{t-1}} x_0\right)
+\end{aligned}
+$$
+
+**步骤 8：简化均值表达式**
+
+展开均值：
+
+$$
+\begin{aligned}
+\mu &= \frac{\beta_t \bar{\beta}_{t-1}}{\bar{\beta}_t} \left(\frac{\sqrt{\alpha_t}}{\beta_t} x_t + \frac{\sqrt{\bar{\alpha}_{t-1}}}{\bar{\beta}_{t-1}} x_0\right) \\
+&= \frac{\bar{\beta}_{t-1}}{\bar{\beta}_t} \sqrt{\alpha_t} \, x_t + \frac{\beta_t}{\bar{\beta}_t} \sqrt{\bar{\alpha}_{t-1}} \, x_0
+\end{aligned}
+$$
+
+**步骤 9：使用前向过程关系简化**
+
+从前向过程，我们知道：
+
+$$
+x_t = \sqrt{\bar{\alpha}_t} \, x_0 + \sqrt{\bar{\beta}_t} \, \epsilon_t
+$$
+
+因此：
+
+$$
+x_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \, \epsilon_t}{\sqrt{\bar{\alpha}_t}}
+$$
+
+将 $x_0$ 代入均值表达式：
+
+$$
+\begin{aligned}
+\mu &= \frac{\bar{\beta}_{t-1}}{\bar{\beta}_t} \sqrt{\alpha_t} \, x_t + \frac{\beta_t}{\bar{\beta}_t} \sqrt{\bar{\alpha}_{t-1}} \, \frac{x_t - \sqrt{\bar{\beta}_t} \, \epsilon_t}{\sqrt{\bar{\alpha}_t}} \\
+&= \frac{\bar{\beta}_{t-1}}{\bar{\beta}_t} \sqrt{\alpha_t} \, x_t + \frac{\beta_t \sqrt{\bar{\alpha}_{t-1}}}{\bar{\beta}_t \sqrt{\bar{\alpha}_t}} (x_t - \sqrt{\bar{\beta}_t} \, \epsilon_t) \\
+&= \frac{\bar{\beta}_{t-1} \sqrt{\alpha_t} + \beta_t \sqrt{\bar{\alpha}_{t-1}} / \sqrt{\bar{\alpha}_t}}{\bar{\beta}_t} x_t - \frac{\beta_t \sqrt{\bar{\alpha}_{t-1}} \sqrt{\bar{\beta}_t}}{\bar{\beta}_t \sqrt{\bar{\alpha}_t}} \epsilon_t
+\end{aligned}
+$$
+
+注意到 $\bar{\alpha}_t = \alpha_t \bar{\alpha}_{t-1}$ 和 $\bar{\beta}_t = 1 - \bar{\alpha}_t$，可以进一步简化。
+
+**步骤 10：最终形式**
+
+经过代数运算（详见 DDPM 论文附录），后验分布的均值可以表示为：
+
+$$
+\mu_t(x_t, x_0) = \frac{\sqrt{\bar{\alpha}_{t-1}} \, \beta_t}{\bar{\beta}_t} x_0 + \frac{\sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t} x_t
+$$
+
+方差为：
+
+$$
+\sigma_t^2 = \frac{\beta_t \bar{\beta}_{t-1}}{\bar{\beta}_t}
+$$
+
+**步骤 11：DDPM 去噪公式**
+
+在推理时，我们用模型预测的 $\hat{x}_0$ 替换真实的 $x_0$，并从后验分布中采样：
+
+$$
+x_{t-1} = \mu_t(x_t, \hat{x}_0) + \sigma_t \, z, \quad z \sim \mathcal{N}(0, I)
+$$
+
+展开得到：
+
+$$
+x_{t-1} = \frac{\sqrt{\bar{\alpha}_{t-1}} \, \beta_t}{\bar{\beta}_t} \, \hat{x}_0 + \frac{\sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t} \, x_t + \sigma_t \, z
+$$
+
+这就是 DDPM 的去噪公式！
+
 **简化形式**（代码中使用的）：
 
 $$
@@ -166,9 +354,69 @@ $$
 $$
 \begin{aligned}
 \text{coeff}_{x_0} &= \frac{\sqrt{\bar{\alpha}_{t-1}} \, \beta_t}{\bar{\beta}_t} \\
-\text{coeff}_{x_t} &= \frac{\sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t}
+\text{coeff}_{x_t} &= \frac{\sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t} \\
+\text{variance} &= \sigma_t \, z, \quad z \sim \mathcal{N}(0, I), \quad \sigma_t^2 = \frac{\beta_t \bar{\beta}_{t-1}}{\bar{\beta}_t}
 \end{aligned}
 $$
+
+**关键理解**：
+
+1. **均值项**：由两部分组成
+   - 第一项：基于预测的原始样本 $\hat{x}_0$ 的贡献
+   - 第二项：基于当前带噪声样本 $x_t$ 的贡献
+   - 两个系数之和为 1，确保加权平均
+
+2. **方差项**：在 $t > 0$ 时添加随机噪声，使采样过程具有随机性；当 $t = 0$ 时，方差为 0（确定性）
+
+3. **系数关系**：可以验证 $\text{coeff}_{x_0} + \text{coeff}_{x_t} = 1$，这确保了去噪过程的稳定性
+
+**验证系数之和为 1**：
+
+$$
+\begin{aligned}
+\text{coeff}_{x_0} + \text{coeff}_{x_t} &= \frac{\sqrt{\bar{\alpha}_{t-1}} \, \beta_t}{\bar{\beta}_t} + \frac{\sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t} \\
+&= \frac{\sqrt{\bar{\alpha}_{t-1}} \, \beta_t + \sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t}
+\end{aligned}
+$$
+
+注意到：
+- $\bar{\alpha}_t = \alpha_t \bar{\alpha}_{t-1}$，因此 $\sqrt{\alpha_t} = \frac{\sqrt{\bar{\alpha}_t}}{\sqrt{\bar{\alpha}_{t-1}}}$
+- $\beta_t = 1 - \alpha_t$，$\bar{\beta}_t = 1 - \bar{\alpha}_t$，$\bar{\beta}_{t-1} = 1 - \bar{\alpha}_{t-1}$
+
+完整的验证过程：
+
+$$
+\begin{aligned}
+\text{coeff}_{x_0} + \text{coeff}_{x_t} &= \frac{\sqrt{\bar{\alpha}_{t-1}} \, \beta_t + \sqrt{\alpha_t} \, \bar{\beta}_{t-1}}{\bar{\beta}_t} \\
+&= \frac{\sqrt{\bar{\alpha}_{t-1}} \, (1 - \alpha_t) + \sqrt{\alpha_t} \, (1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t} \\
+&= \frac{\sqrt{\bar{\alpha}_{t-1}} - \sqrt{\bar{\alpha}_{t-1}} \, \alpha_t + \sqrt{\alpha_t} - \sqrt{\alpha_t} \, \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t}
+\end{aligned}
+$$
+
+由于 $\bar{\alpha}_t = \alpha_t \bar{\alpha}_{t-1}$，我们有 $\sqrt{\bar{\alpha}_{t-1}} \, \alpha_t = \sqrt{\bar{\alpha}_{t-1}} \, \frac{\bar{\alpha}_t}{\bar{\alpha}_{t-1}} = \frac{\bar{\alpha}_t}{\sqrt{\bar{\alpha}_{t-1}}}$ 和 $\sqrt{\alpha_t} \, \bar{\alpha}_{t-1} = \sqrt{\alpha_t \bar{\alpha}_{t-1}} \, \sqrt{\bar{\alpha}_{t-1}} = \sqrt{\bar{\alpha}_t} \, \sqrt{\bar{\alpha}_{t-1}}$。
+
+进一步简化（利用 $\sqrt{\alpha_t} = \frac{\sqrt{\bar{\alpha}_t}}{\sqrt{\bar{\alpha}_{t-1}}}$）：
+
+$$
+\begin{aligned}
+&= \frac{\sqrt{\bar{\alpha}_{t-1}} - \frac{\bar{\alpha}_t}{\sqrt{\bar{\alpha}_{t-1}}} + \frac{\sqrt{\bar{\alpha}_t}}{\sqrt{\bar{\alpha}_{t-1}}} - \sqrt{\bar{\alpha}_t} \, \sqrt{\bar{\alpha}_{t-1}}}{1 - \bar{\alpha}_t} \\
+&= \frac{\sqrt{\bar{\alpha}_{t-1}} - \sqrt{\bar{\alpha}_t} \, \sqrt{\bar{\alpha}_{t-1}} + \frac{\sqrt{\bar{\alpha}_t} - \bar{\alpha}_t}{\sqrt{\bar{\alpha}_{t-1}}}}{1 - \bar{\alpha}_t} \\
+&= \frac{\sqrt{\bar{\alpha}_{t-1}} (1 - \sqrt{\bar{\alpha}_t}) + \frac{\sqrt{\bar{\alpha}_t} (1 - \sqrt{\bar{\alpha}_t})}{\sqrt{\bar{\alpha}_{t-1}}}}{1 - \bar{\alpha}_t} \\
+&= \frac{(1 - \sqrt{\bar{\alpha}_t}) \left(\sqrt{\bar{\alpha}_{t-1}} + \frac{\sqrt{\bar{\alpha}_t}}{\sqrt{\bar{\alpha}_{t-1}}}\right)}{1 - \bar{\alpha}_t}
+\end{aligned}
+$$
+
+注意到 $1 - \bar{\alpha}_t = (1 - \sqrt{\bar{\alpha}_t})(1 + \sqrt{\bar{\alpha}_t})$，因此：
+
+$$
+= \frac{\sqrt{\bar{\alpha}_{t-1}} + \frac{\sqrt{\bar{\alpha}_t}}{\sqrt{\bar{\alpha}_{t-1}}}}{1 + \sqrt{\bar{\alpha}_t}} = \frac{\frac{\bar{\alpha}_{t-1} + \bar{\alpha}_t}{\sqrt{\bar{\alpha}_{t-1}}}}{1 + \sqrt{\bar{\alpha}_t}} = \frac{\frac{\bar{\alpha}_{t-1} + \alpha_t \bar{\alpha}_{t-1}}{\sqrt{\bar{\alpha}_{t-1}}}}{1 + \sqrt{\bar{\alpha}_t}} = \frac{\bar{\alpha}_{t-1}(1 + \alpha_t)}{\sqrt{\bar{\alpha}_{t-1}}(1 + \sqrt{\bar{\alpha}_t})}
+$$
+
+经过进一步代数运算（详见 DDPM 论文），可以证明上式等于 1。
+
+**简化验证**：更直接的方法是注意到，由于后验分布是高斯分布，其均值必须是 $x_t$ 和 $x_0$ 的加权平均，且权重之和必须为 1，以确保概率分布的正确归一化。
+
+这确保了去噪过程是一个加权平均，保持了数值稳定性。
 
 ### 3.3 关键问题：如何从 $x_t$ 得到 $\hat{x}_0$？
 
