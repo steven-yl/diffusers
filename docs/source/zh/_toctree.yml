@@ -140,6 +140,8 @@
     sections:
     - local: community_projects
       title: Projects built with Diffusers
+    - local: conceptual/library_overview
+      title: 整体框架概览
     - local: conceptual/philosophy
       title: Philosophy
     - local: conceptual/contribution
