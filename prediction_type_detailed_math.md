@@ -6,20 +6,22 @@
 
 **前向过程（加噪）**：
 
-$$x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t$$
+$$
+x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t
+$$
 
 **三种预测类型的推理公式**：
 
 | 类型 | 模型输出 → 原始样本 $\hat{x}_0$ | 模型输出 → 噪声 $\hat{\epsilon}_t$ |
 |------|------------------------|---------------------|
-| **epsilon** | $\frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$ | $\hat{\epsilon}_t$（直接） |
-| **sample** | $\hat{x}_0$（直接） | $\frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}$ |
-| **v_prediction** | $\sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$ | $\sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$ |
+| **epsilon** | $$\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$$ | $\hat{\epsilon}_t$（直接） |
+| **sample** | $\hat{x}_0$（直接） | $$\hat{\epsilon}_t = \frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}$$ |
+| **v_prediction** | $$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$$ | $$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$$ |
 
 **训练目标**：
-- **epsilon**: $target = \epsilon_t$
-- **sample**: $target = x_0$
-- **v_prediction**: $target = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$
+- **epsilon**: $\text{target} = \epsilon_t$
+- **sample**: $\text{target} = x_0$
+- **v_prediction**: $\text{target} = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$
 
 ---
 
@@ -69,11 +71,13 @@ alphas_cumprod = torch.cumprod(alphas, dim=0)  # ᾱ_t
 
 **重要关系**：
 
-$$\alpha_t = 1 - \beta_t$$
-
-$$\bar{\alpha}_t = \prod_{i=1}^{t} \alpha_i = \alpha_1 \times \alpha_2 \times \cdots \times \alpha_t$$
-
-$$\bar{\beta}_t = 1 - \bar{\alpha}_t$$
+$$
+\begin{aligned}
+\alpha_t &= 1 - \beta_t \\
+\bar{\alpha}_t &= \prod_{i=1}^{t} \alpha_i = \alpha_1 \times \alpha_2 \times \cdots \times \alpha_t \\
+\bar{\beta}_t &= 1 - \bar{\alpha}_t
+\end{aligned}
+$$
 
 ---
 
@@ -83,13 +87,17 @@ $$\bar{\beta}_t = 1 - \bar{\alpha}_t$$
 
 在前向过程中，我们逐步向数据添加高斯噪声。**关键公式**：
 
-$$x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{1 - \bar{\alpha}_t} \cdot \epsilon$$
+$$
+x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{1 - \bar{\alpha}_t} \cdot \epsilon
+$$
 
 **详细推导**：
 
 从 $x_{t-1}$ 到 $x_t$ 的单步过程：
 
-$$x_t = \sqrt{\alpha_t} \cdot x_{t-1} + \sqrt{\beta_t} \cdot \epsilon_t$$
+$$
+x_t = \sqrt{\alpha_t} \cdot x_{t-1} + \sqrt{\beta_t} \cdot \epsilon_t
+$$
 
 其中 $\epsilon_t \sim \mathcal{N}(0, I)$ 是独立的标准高斯噪声。
 
@@ -97,7 +105,9 @@ $$x_t = \sqrt{\alpha_t} \cdot x_{t-1} + \sqrt{\beta_t} \cdot \epsilon_t$$
 
 通过递归展开，我们可以直接从 $x_0$ 计算任意时间步 $t$ 的 $x_t$：
 
-$$x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon$$
+$$
+x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon
+$$
 
 其中：
 - $\bar{\alpha}_t = \alpha_1 \times \alpha_2 \times \cdots \times \alpha_t$（累积乘积）
@@ -118,7 +128,9 @@ def add_noise(self, original_samples, noise, timesteps):
 
 在时间步 $t$，$x_t$ 的分布为：
 
-$$q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} \cdot x_0, \bar{\beta}_t \cdot I)$$
+$$
+q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} \cdot x_0, \bar{\beta}_t \cdot I)
+$$
 
 这意味着 $x_t$ 是均值为 $\sqrt{\bar{\alpha}_t} \cdot x_0$、方差为 $\bar{\beta}_t$ 的高斯分布。
 
@@ -134,7 +146,9 @@ $$q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} \cdot x_0, \bar{\beta}_t
 
 根据 DDPM 论文（公式 7），从 $x_t$ 预测 $x_{t-1}$ 的公式为：
 
-$$x_{t-1} = \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t} \cdot \hat{x}_0 + \frac{\sqrt{\alpha_t} \cdot \bar{\beta}_{t-1}}{\bar{\beta}_t} \cdot x_t + \sigma_t \cdot z$$
+$$
+x_{t-1} = \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t} \cdot \hat{x}_0 + \frac{\sqrt{\alpha_t} \cdot \bar{\beta}_{t-1}}{\bar{\beta}_t} \cdot x_t + \sigma_t \cdot z
+$$
 
 其中：
 - $\hat{x}_0$ 是模型预测的原始样本
@@ -143,13 +157,18 @@ $$x_{t-1} = \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t} \cdot 
 
 **简化形式**（代码中使用的）：
 
-$$x_{t-1} = \text{coeff}_{x_0} \cdot \hat{x}_0 + \text{coeff}_{x_t} \cdot x_t + \text{variance}$$
+$$
+x_{t-1} = \text{coeff}_{x_0} \cdot \hat{x}_0 + \text{coeff}_{x_t} \cdot x_t + \text{variance}
+$$
 
 其中：
 
-$$\text{coeff}_{x_0} = \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t}$$
-
-$$\text{coeff}_{x_t} = \frac{\sqrt{\alpha_t} \cdot \bar{\beta}_{t-1}}{\bar{\beta}_t}$$
+$$
+\begin{aligned}
+\text{coeff}_{x_0} &= \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t} \\
+\text{coeff}_{x_t} &= \frac{\sqrt{\alpha_t} \cdot \bar{\beta}_{t-1}}{\bar{\beta}_t}
+\end{aligned}
+$$
 
 ### 3.3 关键问题：如何从 $x_t$ 得到 $\hat{x}_0$？
 
@@ -194,13 +213,17 @@ if prediction_type == "epsilon":
 
 **完整公式**：
 
-$$\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$$
+$$
+\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}
+$$
 
 #### 4.1.3 训练目标
 
 在训练时，模型学习预测真实的噪声：
 
-$$\mathcal{L} = \|\hat{\epsilon}_t - \epsilon_t\|^2$$
+$$
+\mathcal{L} = \|\hat{\epsilon}_t - \epsilon_t\|^2
+$$
 
 其中 $\epsilon_t$ 是在前向过程中实际添加的噪声。
 
@@ -238,15 +261,20 @@ elif prediction_type == "sample":
 
 **完整公式**：
 
-$$\hat{x}_0 = \text{model\_output}$$
-
-$$\hat{\epsilon}_t = \frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}$$
+$$
+\begin{aligned}
+\hat{x}_0 &= \text{model\_output} \\
+\hat{\epsilon}_t &= \frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}
+\end{aligned}
+$$
 
 #### 4.2.3 训练目标
 
 在训练时，模型学习预测真实的原始样本：
 
-$$\mathcal{L} = \|\hat{x}_0 - x_0\|^2$$
+$$
+\mathcal{L} = \|\hat{x}_0 - x_0\|^2
+$$
 
 ---
 
@@ -258,7 +286,9 @@ $$\mathcal{L} = \|\hat{x}_0 - x_0\|^2$$
 
 **速度的定义**：
 
-$$v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t
+$$
 
 这个定义看起来有些反直觉，但它在数学上有很好的性质。
 
@@ -279,25 +309,31 @@ elif prediction_type == "v_prediction":
 - `sample` = $x_t$
 - `model_output` = $\hat{v}_t$（模型预测的速度）
 
-**从速度计算原始样本**：
+**从速度计算原始样本和噪声**：
 
-$$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$$
-
-**从速度计算噪声**：
-
-$$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+\begin{aligned}
+\hat{x}_0 &= \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t \\
+\hat{\epsilon}_t &= \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t
+\end{aligned}
+$$
 
 **推导验证**：
 
 我们知道前向过程：
 
-$$x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t \quad \text{(1)}$$
+$$
+x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t \quad \text{(1)}
+$$
 
 从代码中的公式，我们有：
 
-$$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t \quad \text{(2)}$$
-
-$$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t \quad \text{(3)}$$
+$$
+\begin{aligned}
+\hat{x}_0 &= \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t \quad \text{(2)} \\
+\hat{\epsilon}_t &= \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t \quad \text{(3)}
+\end{aligned}
+$$
 
 将 (2) 代入 (1) 验证：
 
@@ -314,7 +350,9 @@ x_t - \bar{\alpha}_t \cdot x_t &= -\sqrt{\bar{\alpha}_t \bar{\beta}_t} \cdot \ha
 
 **速度的定义**（从训练时的计算）：
 
-$$v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t
+$$
 
 从速度定义解出 $\epsilon_t$：
 
@@ -326,7 +364,9 @@ v_t &= \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t \
 
 但代码中使用的是：
 
-$$\epsilon_t = \sqrt{\bar{\alpha}_t} \cdot v_t + \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+\epsilon_t = \sqrt{\bar{\alpha}_t} \cdot v_t + \sqrt{\bar{\beta}_t} \cdot x_t
+$$
 
 **注意**：这两个公式在数学上不完全等价，但代码实现使用的是后者。这可能是因为：
 1. 速度的定义在不同实现中可能有细微差异
@@ -341,9 +381,12 @@ $$\epsilon_t = \sqrt{\bar{\alpha}_t} \cdot v_t + \sqrt{\bar{\beta}_t} \cdot x_t$
 
 **完整公式**：
 
-$$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$$
-
-$$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+\begin{aligned}
+\hat{x}_0 &= \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t \\
+\hat{\epsilon}_t &= \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t
+\end{aligned}
+$$
 
 #### 4.3.3 速度的计算（用于训练）
 
@@ -351,7 +394,9 @@ $$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t
 
 **速度公式**：
 
-$$v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t
+$$
 
 **代码实现**（`get_velocity` 函数）：
 ```python
@@ -375,7 +420,9 @@ def get_velocity(self, sample, noise, timesteps):
 
 在训练时，模型学习预测真实的速度：
 
-$$\mathcal{L} = \|\hat{v}_t - v_t\|^2$$
+$$
+\mathcal{L} = \|\hat{v}_t - v_t\|^2
+$$
 
 其中 $v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$。
 
@@ -387,23 +434,25 @@ $$\mathcal{L} = \|\hat{v}_t - v_t\|^2$$
 
 | 预测类型 | 模型输出 | 计算原始样本 $\hat{x}_0$ | 计算噪声 $\hat{\epsilon}_t$ |
 |---------|---------|------------------|---------------|
-| **epsilon** | $\hat{\epsilon}_t$ | $\frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$ | $\hat{\epsilon}_t$（直接） |
-| **sample** | $\hat{x}_0$ | $\hat{x}_0$（直接） | $\frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}$ |
-| **v_prediction** | $\hat{v}_t$ | $\sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$ | $\sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$ |
+| **epsilon** | $\hat{\epsilon}_t$ | $$\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$$ | $\hat{\epsilon}_t$（直接） |
+| **sample** | $\hat{x}_0$ | $\hat{x}_0$（直接） | $$\hat{\epsilon}_t = \frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}$$ |
+| **v_prediction** | $\hat{v}_t$ | $$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$$ | $$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$$ |
 
 ### 5.2 训练时：计算目标值
 
 | 预测类型 | 目标值计算 |
 |---------|-----------|
-| **epsilon** | $target = \epsilon_t$（真实噪声） |
-| **sample** | $target = x_0$（原始样本） |
-| **v_prediction** | $target = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$（速度） |
+| **epsilon** | $$\text{target} = \epsilon_t$$（真实噪声） |
+| **sample** | $$\text{target} = x_0$$（原始样本） |
+| **v_prediction** | $$\text{target} = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$$（速度） |
 
 ### 5.3 前向过程（加噪）
 
 所有类型共享相同的前向过程：
 
-$$x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t$$
+$$
+x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t
+$$
 
 其中 $\epsilon_t \sim \mathcal{N}(0, I)$ 是标准高斯噪声。
 
@@ -421,11 +470,15 @@ $$x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{\bar{\beta}_t} \cdot \epsilon_t$
 
 **转换为 sample**：
 
-$$\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$$
+$$
+\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}
+$$
 
 **转换为 v**：
 
-$$\hat{v}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{\epsilon}_t - \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+\hat{v}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{\epsilon}_t - \sqrt{\bar{\beta}_t} \cdot x_t
+$$
 
 ### 6.3 从 sample 转换
 
@@ -433,7 +486,9 @@ $$\hat{v}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{\epsilon}_t - \sqrt{\bar{\beta}_t
 
 **转换为 epsilon**：
 
-$$\hat{\epsilon}_t = \frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}$$
+$$
+\hat{\epsilon}_t = \frac{x_t - \sqrt{\bar{\alpha}_t} \cdot \hat{x}_0}{\sqrt{\bar{\beta}_t}}
+$$
 
 **转换为 v**：
 
@@ -451,11 +506,15 @@ $$\begin{aligned}
 
 **转换为 epsilon**：
 
-$$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t
+$$
 
 **转换为 sample**：
 
-$$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$$
+$$
+\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t
+$$
 
 ---
 
@@ -472,7 +531,9 @@ target = noise  # 真实的噪声 ε_t
 
 **损失函数**：
 
-$$\mathcal{L} = \text{MSE}(\hat{\epsilon}_t, \epsilon_t) = \|\hat{\epsilon}_t - \epsilon_t\|^2$$
+$$
+\mathcal{L} = \text{MSE}(\hat{\epsilon}_t, \epsilon_t) = \|\hat{\epsilon}_t - \epsilon_t\|^2
+$$
 
 #### 7.1.2 Sample 预测
 
@@ -483,7 +544,9 @@ target = original_samples  # 真实的原始样本 x_0
 
 **损失函数**：
 
-$$\mathcal{L} = \text{MSE}(\hat{x}_0, x_0) = \|\hat{x}_0 - x_0\|^2$$
+$$
+\mathcal{L} = \text{MSE}(\hat{x}_0, x_0) = \|\hat{x}_0 - x_0\|^2
+$$
 
 #### 7.1.3 V-Prediction
 
@@ -495,7 +558,9 @@ target = scheduler.get_velocity(sample, noise, timesteps)
 
 **损失函数**：
 
-$$\mathcal{L} = \text{MSE}(\hat{v}_t, v_t) = \|\hat{v}_t - v_t\|^2$$
+$$
+\mathcal{L} = \text{MSE}(\hat{v}_t, v_t) = \|\hat{v}_t - v_t\|^2
+$$
 
 其中 $v_t = \sqrt{\bar{\alpha}_t} \cdot \epsilon_t - \sqrt{\bar{\beta}_t} \cdot x_t$。
 
@@ -505,19 +570,27 @@ $$\mathcal{L} = \text{MSE}(\hat{v}_t, v_t) = \|\hat{v}_t - v_t\|^2$$
 
 **SNR 定义**：
 
-$$\text{SNR}(t) = \frac{\bar{\alpha}_t}{\bar{\beta}_t} = \frac{\bar{\alpha}_t}{1 - \bar{\alpha}_t}$$
+$$
+\text{SNR}(t) = \frac{\bar{\alpha}_t}{\bar{\beta}_t} = \frac{\bar{\alpha}_t}{1 - \bar{\alpha}_t}
+$$
 
 **Epsilon 预测的加权**：
 
-$$\text{loss\_weight} = \frac{1}{\text{SNR}(t)}$$
-
-$$\mathcal{L} = \text{loss\_weight} \times \text{MSE}(\hat{\epsilon}_t, \epsilon_t)$$
+$$
+\begin{aligned}
+\text{loss\_weight} &= \frac{1}{\text{SNR}(t)} \\
+\mathcal{L} &= \text{loss\_weight} \times \text{MSE}(\hat{\epsilon}_t, \epsilon_t)
+\end{aligned}
+$$
 
 **V-Prediction 的加权**：
 
-$$\text{loss\_weight} = \frac{1}{\text{SNR}(t) + 1}$$
-
-$$\mathcal{L} = \text{loss\_weight} \times \text{MSE}(\hat{v}_t, v_t)$$
+$$
+\begin{aligned}
+\text{loss\_weight} &= \frac{1}{\text{SNR}(t) + 1} \\
+\mathcal{L} &= \text{loss\_weight} \times \text{MSE}(\hat{v}_t, v_t)
+\end{aligned}
+$$
 
 **代码示例**（来自训练脚本）：
 ```python
@@ -543,21 +616,30 @@ elif prediction_type == "v_prediction":
 
 **步骤 1**：模型预测噪声
 
-$$\hat{\epsilon}_t = \text{model}(x_t, t)$$
+$$
+\hat{\epsilon}_t = \text{model}(x_t, t)
+$$
 
 **步骤 2**：从噪声推导原始样本
 
-$$\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}$$
+$$
+\hat{x}_0 = \frac{x_t - \sqrt{\bar{\beta}_t} \cdot \hat{\epsilon}_t}{\sqrt{\bar{\alpha}_t}}
+$$
 
 **步骤 3**：计算去噪系数
 
-$$\text{coeff}_{x_0} = \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t}$$
-
-$$\text{coeff}_{x_t} = \frac{\sqrt{\alpha_t} \cdot \bar{\beta}_{t-1}}{\bar{\beta}_t}$$
+$$
+\begin{aligned}
+\text{coeff}_{x_0} &= \frac{\sqrt{\bar{\alpha}_{t-1}} \cdot \beta_t}{\bar{\beta}_t} \\
+\text{coeff}_{x_t} &= \frac{\sqrt{\alpha_t} \cdot \bar{\beta}_{t-1}}{\bar{\beta}_t}
+\end{aligned}
+$$
 
 **步骤 4**：预测前一个时间步的样本
 
-$$x_{t-1} = \text{coeff}_{x_0} \cdot \hat{x}_0 + \text{coeff}_{x_t} \cdot x_t + \sigma_t \cdot z$$
+$$
+x_{t-1} = \text{coeff}_{x_0} \cdot \hat{x}_0 + \text{coeff}_{x_t} \cdot x_t + \sigma_t \cdot z
+$$
 
 其中 $z \sim \mathcal{N}(0, I)$ 是随机噪声（仅在 $t > 0$ 时添加）。
 
@@ -567,13 +649,18 @@ $$x_{t-1} = \text{coeff}_{x_0} \cdot \hat{x}_0 + \text{coeff}_{x_t} \cdot x_t + 
 
 **步骤 1**：模型预测速度
 
-$$\hat{v}_t = \text{model}(x_t, t)$$
+$$
+\hat{v}_t = \text{model}(x_t, t)
+$$
 
 **步骤 2**：从速度推导原始样本和噪声
 
-$$\hat{x}_0 = \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t$$
-
-$$\hat{\epsilon}_t = \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t$$
+$$
+\begin{aligned}
+\hat{x}_0 &= \sqrt{\bar{\alpha}_t} \cdot x_t - \sqrt{\bar{\beta}_t} \cdot \hat{v}_t \\
+\hat{\epsilon}_t &= \sqrt{\bar{\alpha}_t} \cdot \hat{v}_t + \sqrt{\bar{\beta}_t} \cdot x_t
+\end{aligned}
+$$
 
 **步骤 3-4**：与 epsilon 预测相同
 
